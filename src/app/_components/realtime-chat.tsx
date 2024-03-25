@@ -2,9 +2,9 @@
 
 import React from "react";
 import { createClient } from "@supabase/supabase-js";
+import toast from "react-hot-toast";
 
 import { Input } from "~/components/ui/input";
-import toast from "react-hot-toast";
 import { ScrollArea } from "~/components/ui/scroll-area";
 
 export interface Message {
@@ -28,6 +28,8 @@ export default function RealtimeChat({ initialMessages }: Props) {
   const [messages, setMessages] = React.useState<Message[]>(initialMessages);
   const formRef = React.useRef<HTMLFormElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const bottomDivRef = React.useRef<HTMLDivElement>(null);
+  const messagingSectionRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const channel = supabase
@@ -35,11 +37,18 @@ export default function RealtimeChat({ initialMessages }: Props) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => setMessages((prev) => [...prev, payload.new as Message]),
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new as Message]);
+          //   bottomDivRef.current?.scrollIntoView();
+          if (messagingSectionRef.current) {
+            console.log(messagingSectionRef.current.clientHeight);
+          }
+        },
       )
       .subscribe();
 
     return () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       supabase.removeChannel(channel);
     };
   }, []);
@@ -73,7 +82,8 @@ export default function RealtimeChat({ initialMessages }: Props) {
 
   if (!username) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center">
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center">
+        <p className="mb-4 text-lg">Enter a username to start messaging...</p>
         <form onSubmit={handleUsername} className="w-full">
           <Input placeholder="type your username" name="username" />
         </form>
@@ -82,24 +92,25 @@ export default function RealtimeChat({ initialMessages }: Props) {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-xl flex-col py-20">
-      <ScrollArea className="flex h-[70vh] flex-1 flex-col justify-end space-y-4 overflow-y-scroll pb-4">
-        <div className="space-y-4 pb-6">
-          {messages.map((message) => {
-            return (
-              <div key={message.id} className="flex items-center gap-4">
-                {/*    eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://api.dicebear.com/8.x/pixel-art/svg?seed=${message.user_name}`}
-                  className="h-7 w-7 object-contain"
-                  alt=""
-                />
-                <p className="text-xl">{message.content}</p>
-              </div>
-            );
-          })}
-          {/* <div /> */}
-        </div>
+    <div className="mx-auto flex min-h-screen max-w-xl flex-col py-10">
+      <ScrollArea
+        ref={messagingSectionRef}
+        className="mb-6 flex h-[80vh] rounded border border-neutral-800 px-6 py-4"
+      >
+        {messages.map((message) => {
+          return (
+            <div key={message.id} className="mb-4 flex items-center gap-4">
+              {/*    eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://api.dicebear.com/8.x/pixel-art/svg?seed=${message.user_name}`}
+                className="h-7 w-7 object-contain"
+                alt=""
+              />
+              <p className="text-xl">{message.content}</p>
+            </div>
+          );
+        })}
+        <div ref={bottomDivRef} />
       </ScrollArea>
       <div className="">
         <form
